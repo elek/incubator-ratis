@@ -27,13 +27,11 @@
     <dependency>
       <artifactId>ratis-proto-shaded</artifactId>
       <groupId>org.apache.ratis</groupId>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <artifactId>ratis-common</artifactId>
       <groupId>org.apache.ratis</groupId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>ratis-common</artifactId>
@@ -45,7 +43,6 @@
     <dependency>
       <artifactId>ratis-client</artifactId>
       <groupId>org.apache.ratis</groupId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>ratis-client</artifactId>
@@ -57,7 +54,6 @@
     <dependency>
       <artifactId>ratis-server</artifactId>
       <groupId>org.apache.ratis</groupId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>ratis-server</artifactId>
@@ -86,7 +82,6 @@
     <dependency>
       <artifactId>ratis-grpc</artifactId>
       <groupId>org.apache.ratis</groupId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>ratis-grpc</artifactId>

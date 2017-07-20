@@ -573,4 +573,8 @@ public class LeaderState {
               + newConf + ". Timeout when bootstrapping new peers."));
     }
   }
+
+  public List<LogAppender> getSenders() {
+    return senders;
+  }
 }

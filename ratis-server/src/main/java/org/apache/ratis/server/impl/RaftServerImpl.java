@@ -20,6 +20,7 @@ package org.apache.ratis.server.impl;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.protocol.*;
 import org.apache.ratis.server.RaftServerConfigKeys;
+import org.apache.ratis.server.RaftServerMXBean;
 import org.apache.ratis.server.RaftServerRpc;
 import org.apache.ratis.server.protocol.RaftServerProtocol;
 import org.apache.ratis.server.protocol.TermIndex;
@@ -34,13 +35,17 @@ import org.apache.ratis.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.lang.management.ManagementFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.ratis.server.impl.ServerProtoUtils.toRaftConfiguration;
 import static org.apache.ratis.shaded.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.*;
@@ -156,6 +161,62 @@ public class RaftServerImpl implements RaftServerProtocol,
       LOG.debug("{} starts with initializing state", getId());
       startInitializing();
     }
+    registerMBean();
+
+  }
+
+  private void registerMBean() {
+    try {
+      final MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+      ObjectName name =
+          new ObjectName("Ratis:service=RaftServer,name=" + getId().toString());
+      mbs.registerMBean(new RaftServerMXBean() {
+        @Override
+        public String getId() {
+          return state.getSelfId().toString();
+        }
+
+        @Override
+        public String getLeaderId() {
+          return getState().getLeaderId().toString();
+        }
+
+        @Override
+        public long getCurrentTerm() {
+          return state.getCurrentTerm();
+        }
+
+        @Override
+        public String getGroupId() {
+          return groupId.toString();
+        }
+
+        @Override
+        public String getRole() {
+          return role.toString();
+        }
+
+        @Override
+        public List<RaftPeerInfo> getPeers() {
+          if (leaderState != null) {
+            return leaderState.getSenders().stream()
+                .map(appender -> appender.getFollower())
+                .map(follower -> new RaftPeerInfo(follower.getPeer().getId().toString(), follower.getPeer().getAddress().toString()))
+                .collect(Collectors.toList());
+          } else {
+            return Collections.emptyList();
+          }
+        }
+
+        @Override
+        public String getLeaderAddress() {
+          return null;
+        }
+      }, name);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+
   }
 
   /**

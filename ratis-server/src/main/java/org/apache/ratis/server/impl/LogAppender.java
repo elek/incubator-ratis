@@ -74,6 +74,7 @@ public class LogAppender extends Daemon {
 
     this.buffer = new LogEntryBuffer();
     this.leaderTerm = server.getState().getCurrentTerm();
+    setName("LogAppender-" + f.getPeer().getId().toString());
   }
 
   @Override

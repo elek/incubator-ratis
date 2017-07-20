@@ -283,6 +283,10 @@ public class LeaderState {
    * state, such as changing to follower, or updating the committed index.
    */
   private class EventProcessor extends Daemon {
+    public EventProcessor() {
+      setName("LeaderStateEventProcessor");
+    }
+
     @Override
     public void run() {
       // apply an empty message; check if necessary to replicate (new) conf

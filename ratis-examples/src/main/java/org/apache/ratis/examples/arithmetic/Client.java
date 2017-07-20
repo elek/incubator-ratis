@@ -23,22 +23,22 @@ public class Client {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     RaftGroup raftGroup = new RaftGroup(RaftGroupId.createId(), new RaftPeer[] {
-        new RaftPeer(RaftPeerId.valueOf("node0"), "localhost:6000"),
-        new RaftPeer(RaftPeerId.valueOf("node1"), "localhost:6001")});
+        new RaftPeer(RaftPeerId.valueOf("node0"), "localhost:6000")});
 
     builder.setRaftGroup(raftGroup);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc());
     RaftClient client = builder.build();
+
     //    RaftClientReply asd = client
     //        .send(new AssignmentMessage(new Variable("asd"), new
     // DoubleValue(12d)));
-    RaftClientReply asd =
-        client.sendReadOnly(Expression.Utils.toMessage(new Variable("asd")));
-    System.out.println(asd.getMessage().getContent());
-    Expression response =
-        Expression.Utils.bytes2Expression(asd.getMessage().getContent().toByteArray(), 0);
-    System.out.println(((DoubleValue)response).toString());
-    System.exit(-1);
+//    RaftClientReply asd =
+//        client.sendReadOnly(Expression.Utils.toMessage(new Variable("asd")));
+//    System.out.println(asd.getMessage().getContent());
+//    Expression response =
+//        Expression.Utils.bytes2Expression(asd.getMessage().getContent().toByteArray(), 0);
+//    System.out.println(((DoubleValue)response).toString());
+//    System.exit(-1);
 
   }
 }

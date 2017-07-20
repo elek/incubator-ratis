@@ -1,13 +1,9 @@
 package org.apache.ratis.examples.arithmetic;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Level;
 import org.apache.ratis.client.RaftClient;
-import org.apache.ratis.conf.Parameters;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
-import org.apache.ratis.hadooprpc.HadoopConfigKeys;
-import org.apache.ratis.hadooprpc.server.HadoopRpcService;
 import org.apache.ratis.protocol.RaftGroup;
 import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.protocol.RaftPeer;
@@ -15,11 +11,9 @@ import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.server.impl.RaftServerImpl;
-import org.apache.ratis.server.impl.ServerImplUtils;
 import org.apache.ratis.statemachine.StateMachine;
 import org.apache.ratis.util.LogUtils;
 
-import java.util.Collections;
 import java.util.stream.IntStream;
 
 /**
@@ -60,6 +54,5 @@ public class Server {
         .setStateMachine(stateMachine).setProperties(properties)
         .setPeers(raftGroup).build();
     raftServer.start();
-
   }
 }

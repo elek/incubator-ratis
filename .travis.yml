@@ -1,0 +1,12 @@
+language: java
+
+sudo: required
+
+service: docker
+
+script:
+   - ./start-build-env.sh mvn clean -Pclean-shade 
+   - ./start-build-env.sh mvn install -DskipTests
+   - ./start-build-env.sh mvn test
+
+

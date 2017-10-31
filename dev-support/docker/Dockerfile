@@ -36,7 +36,8 @@ RUN apt-get -q update && apt-get -q install --no-install-recommends -y \
     curl \
     unzip \
     git \
-	 wget
+	 wget \
+	 rsync
 
 # wget configuration
 

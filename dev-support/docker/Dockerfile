@@ -35,14 +35,18 @@ ENV DEBCONF_TERSE true
 RUN apt-get -q update && apt-get -q install --no-install-recommends -y \
     curl \
     unzip \
-    git
+    git \
+	 wget
+
+# wget configuration
+
+RUN echo "dot_style = mega" > "/root/.wgetrc"
+RUN echo "quiet = on" >> "/root/.wgetrc"
+
 
 #######
 # OpenJDK Java
 #######
-
-RUN echo "dot_style = mega" > "/root/.wgetrc"
-RUN echo "quiet = on" >> "/root/.wgetrc"
 
 RUN apt-get -q install -y openjdk-8-jdk
 

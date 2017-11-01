@@ -15,6 +15,7 @@ mkdir -p "${ARTIFACTS}" "${YETUSDIR}" "${TOOLS}"
 
 #It's not on all the branch, so we need to copy it from the checkout out source
 cp $BASEDIR/dev-support/yetus-personality.sh $WORKSPACE/
+cp $BASEDIR/dev-support/docker/Dockerfile $WORKSPACE/
 
 echo "Downloading Yetus"
 #curl -L https://archive.apache.org/dist/yetus/0.5.0/yetus-0.5.0-bin.tar.gz -o yetus.tar.gz

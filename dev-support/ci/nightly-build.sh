@@ -4,7 +4,7 @@ source $DIR/common.sh
 
 YETUS_ARGS+=("--archive-list=checkstyle-errors.xml,findbugsXml.xml")
 YETUS_ARGS+=("--basedir=${BASEDIR}")
-YETUS_ARGS+=("--branch=${BRANCH}")
+YETUS_ARGS+=("--branch=${BRANCH:-master}")
 YETUS_ARGS+=("--brief-report-file=${ARTIFACTS}/email-report.txt")
 YETUS_ARGS+=("--build-url-artifacts=artifact/out")
 YETUS_ARGS+=("--console-report-file=${ARTIFACTS}/console-report.txt")

@@ -50,3 +50,4 @@ YETUS_ARGS+=("RATIS-${ISSUE_NUM}")
 
 
 /bin/bash ${TESTPATCHBIN} "${YETUS_ARGS[@]}"
+

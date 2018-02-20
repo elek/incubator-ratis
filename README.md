@@ -12,7 +12,12 @@
   limitations under the License. See accompanying LICENSE file.
 -->
 
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Felek%2Fincubator-ratis.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Felek%2Fincubator-ratis?ref=badge_large)
+
 # Ratis
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Felek%2Fincubator-ratis.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Felek%2Fincubator-ratis?ref=badge_shield)
+
 Ratis is a java library that implements the RAFT protocol[1]. The Raft paper can be accessed at [this link] (https://raft.github.io/raft.pdf). The paper introduces Raft and states its motivations in following words:
   > Raft is a consensus algorithm for managing a replicated log. It produces a result equivalent to (multi-)Paxos, and it is as efficient as Paxos, but its structure is different from Paxos; this makes Raft more understandable than Paxos and also provides a better foundation for building practical systems.
 
@@ -21,4 +26,3 @@ Ratis is a java library that implements the RAFT protocol[1]. The Raft paper can
 
 # Reference
 [1] _Diego Ongaro and John Ousterhout. 2014. In search of an understandable consensus algorithm. In Proceedings of the 2014 USENIX conference on USENIX Annual Technical Conference (USENIX ATC'14), Garth Gibson and Nickolai Zeldovich (Eds.). USENIX Association, Berkeley, CA, USA, 305-320._
-

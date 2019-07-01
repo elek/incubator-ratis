@@ -27,6 +27,8 @@ services:
       command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
                 "--id", "n0", "--storage", "/tmp/data",
                 "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+      environment:
+        JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
 
    server2:
       image: apache/ratis-runner

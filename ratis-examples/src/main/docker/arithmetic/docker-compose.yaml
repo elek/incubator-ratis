@@ -17,39 +17,69 @@
 version: "3"
 services:
   n0:
-      image: apache/ratis-runner
-      volumes:
-        - ../../../../:/opt/ratis
-      ports:
-        - 9864:9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
-                "--id", "n0", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
-      environment:
-        JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+    image: apache/ratis-runner
+    volumes:
+      - ../../../../:/opt/ratis
+    ports:
+      - 9864:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
+              "--id", "n0", "--storage", "/tmp/data",
+              "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+
 
   n1:
-      image: apache/ratis-runner
-      volumes:
-        - ../../../../:/opt/ratis
-      ports:
-        - 9865:9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
-                "--id", "n1", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    image: apache/ratis-runner
+    volumes:
+      - ../../../../:/opt/ratis
+    ports:
+      - 9865:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
+              "--id", "n1", "--storage", "/tmp/data",
+              "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
 
   n2:
-      image: apache/ratis-runner
-      volumes:
-        - ../../../../:/opt/ratis
-      ports:
-        - 9866:9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
-                "--id", "n2", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    image: apache/ratis-runner
+    volumes:
+      - ../../../../:/opt/ratis
+    ports:
+      - 9866:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "arithmetic", "server",
+              "--id", "n2", "--storage", "/tmp/data",
+              "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
 
   client:
-      image: apache/ratis-runner
-      volumes:
-        - ../../../../:/opt/ratis
-      command: ["sleep", "infinity"]
+    image: apache/ratis-runner
+    volumes:
+      - ../../../../:/opt/ratis
+    command: ["sleep", "infinity"]
+    environment:
+      #JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+    ports:
+      - 16686:16686
+
+
+#JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=0.0.0.0:5005
+#  ./src/main/bin/client.sh arithmetic assign --name v1 --value 1

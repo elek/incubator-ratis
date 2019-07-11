@@ -20,6 +20,7 @@ package org.apache.ratis.grpc.server;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcTlsConfig;
 import org.apache.ratis.grpc.client.GrpcClientProtocolService;
+import org.apache.ratis.grpc.tracing.GrpcServerInterceptor;
 import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.rpc.SupportedRpcType;
@@ -115,6 +116,7 @@ public class GrpcService extends RaftServerRpcWithProxy<GrpcServerProtocolClient
         .addService(clientProtocolService)
         .addService(new GrpcAdminProtocolService(raftServer));
 
+    nettyServerBuilder = nettyServerBuilder.intercept(new GrpcServerInterceptor());
     if (tlsConfig != null) {
       SslContextBuilder sslContextBuilder =
           SslContextBuilder.forServer(tlsConfig.getCertChain(),

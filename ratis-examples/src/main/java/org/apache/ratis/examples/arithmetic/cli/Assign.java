@@ -19,6 +19,8 @@ package org.apache.ratis.examples.arithmetic.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import io.opentracing.Scope;
+import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.examples.arithmetic.AssignmentMessage;
 import org.apache.ratis.examples.arithmetic.expression.*;
@@ -49,10 +51,14 @@ public class Assign extends Client {
 
   @Override
   protected void operation(RaftClient client) throws IOException {
-    RaftClientReply send = client.send(
-        new AssignmentMessage(new Variable(name), createExpression(value)));
-    System.out.println("Success: " + send.isSuccess());
-    System.out.println("Response: " + send.getMessage().getClass());
+    try (Scope scope = GlobalTracer.get().buildSpan("assign")
+        .startActive(true)) {
+
+      RaftClientReply send = client.send(
+          new AssignmentMessage(new Variable(name), createExpression(value)));
+      System.out.println("Success: " + send.isSuccess());
+      System.out.println("Response: " + send.getMessage().getClass());
+    }
   }
 
   @VisibleForTesting

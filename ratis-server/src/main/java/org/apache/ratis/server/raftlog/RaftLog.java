@@ -17,6 +17,8 @@
  */
 package org.apache.ratis.server.raftlog;
 
+import io.opentracing.Scope;
+import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
 import org.apache.ratis.protocol.RaftPeerId;
@@ -356,7 +358,10 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
   @Override
   public final CompletableFuture<Long> appendEntry(LogEntryProto entry) {
-    return runner.runSequentially(() -> appendEntryImpl(entry));
+    Scope scope =
+        GlobalTracer.get().buildSpan("RaftLog.appendEntry").startActive(true);
+    return runner.runSequentially(
+        () -> appendEntryImpl(entry).whenComplete((r, e) -> scope.close()));
   }
 
   protected abstract CompletableFuture<Long> appendEntryImpl(LogEntryProto entry);

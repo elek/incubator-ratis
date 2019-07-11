@@ -17,6 +17,8 @@
  */
 package org.apache.ratis.grpc.client;
 
+import io.opentracing.Scope;
+import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
 import org.apache.ratis.conf.RaftProperties;
@@ -62,7 +64,8 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   public CompletableFuture<RaftClientReply> sendRequestAsync(
       RaftClientRequest request) {
     final RaftPeerId serverId = request.getServerId();
-    try {
+    try (Scope scope = GlobalTracer.get().buildSpan("sendRequestAsync")
+        .startActive(true)) {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
       // Reuse the same grpc stream for all async calls.
       return proxy.getOrderedStreamObservers().onNext(request);
@@ -74,7 +77,8 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   @Override
   public CompletableFuture<RaftClientReply> sendRequestAsyncUnordered(RaftClientRequest request) {
     final RaftPeerId serverId = request.getServerId();
-    try {
+    try (Scope scope = GlobalTracer.get().buildSpan("sendRequestAsyncUnordered")
+        .startActive(true)) {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
       // Reuse the same grpc stream for all async calls.
       return proxy.getUnorderedAsyncStreamObservers().onNext(request);
@@ -87,36 +91,46 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   @Override
   public RaftClientReply sendRequest(RaftClientRequest request)
       throws IOException {
-    final RaftPeerId serverId = request.getServerId();
-    final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
-    if (request instanceof GroupManagementRequest) {
-      final GroupManagementRequestProto proto = ClientProtoUtils.toGroupManagementRequestProto((GroupManagementRequest)request);
-      return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
-    } else if (request instanceof SetConfigurationRequest) {
-      final SetConfigurationRequestProto setConf = ClientProtoUtils.toSetConfigurationRequestProto(
-          (SetConfigurationRequest) request);
-      return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(setConf));
-    } else if (request instanceof GroupListRequest){
-      final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto(
-          (GroupListRequest) request);
-      return ClientProtoUtils.toGroupListReply(proxy.groupList(proto));
-    } else if (request instanceof GroupInfoRequest){
-      final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto(
-          (GroupInfoRequest) request);
-      return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
-    } else {
-      final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
-      // TODO: timeout support
-      try {
-        return f.get();
-      } catch (InterruptedException e) {
-        throw new InterruptedIOException(
-            "Interrupted while waiting for response of request " + request);
-      } catch (ExecutionException e) {
-        if (LOG.isTraceEnabled()) {
-          LOG.trace(clientId + ": failed " + request, e);
+    try (Scope scope = GlobalTracer.get()
+        .buildSpan("GrpcClientRpc." + request.getClass().getSimpleName())
+        .startActive(true)) {
+      final RaftPeerId serverId = request.getServerId();
+      final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
+      if (request instanceof GroupManagementRequest) {
+        final GroupManagementRequestProto proto = ClientProtoUtils
+            .toGroupManagementRequestProto((GroupManagementRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
+      } else if (request instanceof SetConfigurationRequest) {
+        final SetConfigurationRequestProto setConf =
+            ClientProtoUtils.toSetConfigurationRequestProto(
+                (SetConfigurationRequest) request);
+        return ClientProtoUtils
+            .toRaftClientReply(proxy.setConfiguration(setConf));
+      } else if (request instanceof GroupListRequest) {
+        final GroupListRequestProto proto =
+            ClientProtoUtils.toGroupListRequestProto(
+                (GroupListRequest) request);
+        return ClientProtoUtils.toGroupListReply(proxy.groupList(proto));
+      } else if (request instanceof GroupInfoRequest) {
+        final GroupInfoRequestProto proto =
+            ClientProtoUtils.toGroupInfoRequestProto(
+                (GroupInfoRequest) request);
+        return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
+      } else {
+        final CompletableFuture<RaftClientReply> f =
+            sendRequest(request, proxy);
+        // TODO: timeout support
+        try {
+          return f.get();
+        } catch (InterruptedException e) {
+          throw new InterruptedIOException(
+              "Interrupted while waiting for response of request " + request);
+        } catch (ExecutionException e) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace(clientId + ": failed " + request, e);
+          }
+          throw IOUtils.toIOException(e);
         }
-        throw IOUtils.toIOException(e);
       }
     }
   }
@@ -125,6 +139,8 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       RaftClientRequest request, GrpcClientProtocolClient proxy) throws IOException {
     final RaftClientRequestProto requestProto =
         toRaftClientRequestProto(request);
+    //    Scope scope =
+    //        GlobalTracer.get().buildSpan("sendRequest").startActive(true);
     final CompletableFuture<RaftClientReplyProto> replyFuture = new CompletableFuture<>();
     // create a new grpc stream for each non-async call.
     final StreamObserver<RaftClientRequestProto> requestObserver =
@@ -132,11 +148,13 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
           @Override
           public void onNext(RaftClientReplyProto value) {
             replyFuture.complete(value);
+            //            scope.close();
           }
 
           @Override
           public void onError(Throwable t) {
             replyFuture.completeExceptionally(GrpcUtil.unwrapIOException(t));
+            //            scope.close();
           }
 
           @Override

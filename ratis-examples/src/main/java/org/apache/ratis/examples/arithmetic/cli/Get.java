@@ -19,12 +19,15 @@ package org.apache.ratis.examples.arithmetic.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import io.opentracing.Scope;
+import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.examples.arithmetic.AssignmentMessage;
 import org.apache.ratis.examples.arithmetic.expression.DoubleValue;
 import org.apache.ratis.examples.arithmetic.expression.Expression;
 import org.apache.ratis.examples.arithmetic.expression.Variable;
 import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.tracing.TracingUtil;
 
 import java.io.IOException;
 
@@ -40,10 +43,14 @@ public class Get extends Client {
 
   @Override
   protected void operation(RaftClient client) throws IOException {
-    RaftClientReply getValue =
-        client.sendReadOnly(Expression.Utils.toMessage(new Variable(name)));
-    Expression response =
-        Expression.Utils.bytes2Expression(getValue.getMessage().getContent().toByteArray(), 0);
-    System.out.println(String.format("%s=%s", name, (DoubleValue) response).toString());
+    try (Scope scope = GlobalTracer.get().buildSpan("get").startActive(true)) {
+      RaftClientReply getValue =
+          client.sendReadOnly(Expression.Utils.toMessage(new Variable(name)));
+      Expression response =
+          Expression.Utils.bytes2Expression(
+              getValue.getMessage().getContent().toByteArray(), 0);
+      System.out.println(
+          String.format("%s=%s", name, (DoubleValue) response).toString());
+    }
   }
 }

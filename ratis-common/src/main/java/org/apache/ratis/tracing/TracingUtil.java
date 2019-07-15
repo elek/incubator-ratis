@@ -18,6 +18,7 @@
 package org.apache.ratis.tracing;
 
 import java.lang.reflect.Proxy;
+import java.util.concurrent.CompletableFuture;
 
 import io.jaegertracing.Configuration;
 import io.jaegertracing.internal.JaegerTracer;
@@ -37,6 +38,17 @@ public final class TracingUtil {
   private TracingUtil() {
   }
 
+  public static <T> CompletableFuture<T> traceFuture(
+      CompletableFuture<T> future, Scope scope) {
+    return future.whenComplete((value, throwable) -> scope.close());
+  }
+
+  public static <T> CompletableFuture<T> traceFuture(
+      CompletableFuture<T> future, String name) {
+    Scope scope =
+        GlobalTracer.get().buildSpan(name).startActive(true);
+    return future.whenComplete((value, throwable) -> scope.close());
+  }
   /**
    * Initialize the tracing with the given service name.
    *

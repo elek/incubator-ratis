@@ -32,6 +32,7 @@ import org.apache.ratis.server.raftlog.segmented.SegmentedRaftLogCache.TruncateI
 import org.apache.ratis.server.storage.RaftStorageDirectory.LogPathAndIndex;
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
 import org.apache.ratis.statemachine.StateMachine;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.AutoCloseableLock;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Preconditions;

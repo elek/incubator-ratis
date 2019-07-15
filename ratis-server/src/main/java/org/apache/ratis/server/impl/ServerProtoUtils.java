@@ -27,6 +27,7 @@ import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.server.protocol.TermIndex;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 
@@ -179,6 +180,8 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
+        .setTracingInfo(
+            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
         .setConfigurationEntry(toRaftConfigurationProto(conf))
         .build();
   }
@@ -187,6 +190,8 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
+        .setTracingInfo(
+            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
         .setStateMachineLogEntry(smLog)
         .build();
   }
@@ -195,6 +200,8 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
+        .setTracingInfo(
+            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
         .setMetadataEntry(toMetadataEntryBuilder(commitIndex))
         .build();
   }

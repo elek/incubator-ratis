@@ -31,6 +31,7 @@ import org.apache.ratis.server.impl.ServerProtoUtils;
 import org.apache.ratis.server.protocol.TermIndex;
 import org.apache.ratis.statemachine.TransactionContext;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.AutoCloseableLock;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.OpenCloseState;
@@ -47,6 +48,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -358,10 +360,11 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
   @Override
   public final CompletableFuture<Long> appendEntry(LogEntryProto entry) {
-    Scope scope =
-        GlobalTracer.get().buildSpan("RaftLog.appendEntry").startActive(true);
-    return runner.runSequentially(
-        () -> appendEntryImpl(entry).whenComplete((r, e) -> scope.close()));
+    Scope scope = TracingUtil.importAndCreateScope("RaftLog.appendEntry",
+        new String(entry.getTracingInfo().toByteArray()));
+    return TracingUtil.traceFuture(runner.runSequentially(
+        () -> appendEntryImpl(entry).whenComplete((r, e) -> scope.close())),
+        scope);
   }
 
   protected abstract CompletableFuture<Long> appendEntryImpl(LogEntryProto entry);

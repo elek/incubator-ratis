@@ -17,6 +17,11 @@
  */
 package org.apache.ratis.grpc.client;
 
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 import io.opentracing.Scope;
 import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.impl.ClientProtoUtils;
@@ -25,25 +30,29 @@ import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcTlsConfig;
 import org.apache.ratis.grpc.GrpcUtil;
-import org.apache.ratis.protocol.*;
-import org.apache.ratis.thirdparty.io.grpc.StatusRuntimeException;
-import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
 import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
 import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
 import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
+import org.apache.ratis.protocol.AlreadyClosedException;
+import org.apache.ratis.protocol.ClientId;
+import org.apache.ratis.protocol.GroupInfoRequest;
+import org.apache.ratis.protocol.GroupListRequest;
+import org.apache.ratis.protocol.GroupManagementRequest;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.thirdparty.io.grpc.StatusRuntimeException;
+import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.PeerProxyMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClient> {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientRpc.class);
@@ -91,10 +100,8 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   @Override
   public RaftClientReply sendRequest(RaftClientRequest request)
       throws IOException {
-    try (Scope scope = GlobalTracer.get()
-        .buildSpan("GrpcClientRpc." + request.getClass().getSimpleName())
-        .startActive(true)) {
-      final RaftPeerId serverId = request.getServerId();
+
+    final RaftPeerId serverId = request.getServerId();
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
       if (request instanceof GroupManagementRequest) {
         final GroupManagementRequestProto proto = ClientProtoUtils
@@ -132,15 +139,16 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
           throw IOUtils.toIOException(e);
         }
       }
-    }
   }
 
   private CompletableFuture<RaftClientReply> sendRequest(
       RaftClientRequest request, GrpcClientProtocolClient proxy) throws IOException {
+    Scope scope =
+        GlobalTracer.get().buildSpan("GrpcClientRpc.sendRequest")
+            .startActive(true);
     final RaftClientRequestProto requestProto =
         toRaftClientRequestProto(request);
-    //    Scope scope =
-    //        GlobalTracer.get().buildSpan("sendRequest").startActive(true);
+
     final CompletableFuture<RaftClientReplyProto> replyFuture = new CompletableFuture<>();
     // create a new grpc stream for each non-async call.
     final StreamObserver<RaftClientRequestProto> requestObserver =
@@ -148,13 +156,11 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
           @Override
           public void onNext(RaftClientReplyProto value) {
             replyFuture.complete(value);
-            //            scope.close();
           }
 
           @Override
           public void onError(Throwable t) {
             replyFuture.completeExceptionally(GrpcUtil.unwrapIOException(t));
-            //            scope.close();
           }
 
           @Override

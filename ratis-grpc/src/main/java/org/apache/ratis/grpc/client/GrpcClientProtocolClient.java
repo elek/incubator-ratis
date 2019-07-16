@@ -17,52 +17,6 @@
  */
 package org.apache.ratis.grpc.client;
 
-import org.apache.ratis.client.RaftClientConfigKeys;
-import org.apache.ratis.client.impl.ClientProtoUtils;
-import org.apache.ratis.conf.RaftProperties;
-import org.apache.ratis.grpc.GrpcConfigKeys;
-import org.apache.ratis.grpc.GrpcTlsConfig;
-import org.apache.ratis.grpc.GrpcUtil;
-import org.apache.ratis.grpc.tracing.GrpcClientInterceptor;
-import org.apache.ratis.proto.RaftProtos.GroupInfoReplyProto;
-import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupListReplyProto;
-import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
-import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
-import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
-import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
-import org.apache.ratis.protocol.LeaderNotReadyException;
-import org.apache.ratis.protocol.TimeoutIOException;
-import org.apache.ratis.thirdparty.io.grpc.ClientInterceptor;
-import org.apache.ratis.thirdparty.io.grpc.netty.GrpcSslContexts;
-import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContextBuilder;
-import org.apache.ratis.proto.grpc.AdminProtocolServiceGrpc;
-import org.apache.ratis.proto.grpc.AdminProtocolServiceGrpc.AdminProtocolServiceBlockingStub;
-import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc;
-import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceBlockingStub;
-import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceStub;
-import org.apache.ratis.protocol.AlreadyClosedException;
-import org.apache.ratis.protocol.ClientId;
-import org.apache.ratis.protocol.NotLeaderException;
-import org.apache.ratis.protocol.RaftClientReply;
-import org.apache.ratis.protocol.RaftClientRequest;
-import org.apache.ratis.protocol.RaftPeer;
-import org.apache.ratis.thirdparty.io.grpc.ManagedChannel;
-import org.apache.ratis.thirdparty.io.grpc.StatusRuntimeException;
-import org.apache.ratis.thirdparty.io.grpc.netty.NegotiationType;
-import org.apache.ratis.thirdparty.io.grpc.netty.NettyChannelBuilder;
-import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
-import org.apache.ratis.util.CollectionUtils;
-import org.apache.ratis.util.JavaUtils;
-import org.apache.ratis.util.ReflectionUtils;
-import org.apache.ratis.util.SizeInBytes;
-import org.apache.ratis.util.TimeDuration;
-import org.apache.ratis.util.TimeoutScheduler;
-import org.apache.ratis.util.function.CheckedSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
@@ -73,6 +27,49 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.apache.ratis.client.RaftClientConfigKeys;
+import org.apache.ratis.client.impl.ClientProtoUtils;
+import org.apache.ratis.conf.RaftProperties;
+import org.apache.ratis.grpc.GrpcConfigKeys;
+import org.apache.ratis.grpc.GrpcTlsConfig;
+import org.apache.ratis.grpc.GrpcUtil;
+import org.apache.ratis.proto.RaftProtos.GroupInfoReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupListReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
+import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
+import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
+import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
+import org.apache.ratis.proto.grpc.AdminProtocolServiceGrpc;
+import org.apache.ratis.proto.grpc.AdminProtocolServiceGrpc.AdminProtocolServiceBlockingStub;
+import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc;
+import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceBlockingStub;
+import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceStub;
+import org.apache.ratis.protocol.AlreadyClosedException;
+import org.apache.ratis.protocol.ClientId;
+import org.apache.ratis.protocol.LeaderNotReadyException;
+import org.apache.ratis.protocol.NotLeaderException;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftPeer;
+import org.apache.ratis.protocol.TimeoutIOException;
+import org.apache.ratis.thirdparty.io.grpc.ManagedChannel;
+import org.apache.ratis.thirdparty.io.grpc.StatusRuntimeException;
+import org.apache.ratis.thirdparty.io.grpc.netty.GrpcSslContexts;
+import org.apache.ratis.thirdparty.io.grpc.netty.NegotiationType;
+import org.apache.ratis.thirdparty.io.grpc.netty.NettyChannelBuilder;
+import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
+import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContextBuilder;
+import org.apache.ratis.util.CollectionUtils;
+import org.apache.ratis.util.JavaUtils;
+import org.apache.ratis.util.SizeInBytes;
+import org.apache.ratis.util.TimeDuration;
+import org.apache.ratis.util.TimeoutScheduler;
+import org.apache.ratis.util.function.CheckedSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrpcClientProtocolClient implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientProtocolClient.class);
@@ -118,7 +115,7 @@ public class GrpcClientProtocolClient implements Closeable {
       channelBuilder.negotiationType(NegotiationType.PLAINTEXT);
     }
 
-    channelBuilder.intercept(new GrpcClientInterceptor());
+//    channelBuilder.intercept(new GrpcClientInterceptor());
 
     channel = channelBuilder.flowControlWindow(flowControlWindow.getSizeInt())
         .maxInboundMessageSize(maxMessageSize.getSizeInt())

@@ -1329,8 +1329,8 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
                 stateMachine.applyTransaction(trx),
                 TracingUtil
                     .importAndCreateScope("stateMachine.applyTransaction",
-                        new String(next.getTracingInfo().toByteArray()))
-            );
+                        next.getTracingInfo()));
+
         return replyPendingRequest(next, stateMachineFuture);
       } catch (Throwable e) {
         LOG.error("{}: applyTransaction failed for index:{} proto:{}",

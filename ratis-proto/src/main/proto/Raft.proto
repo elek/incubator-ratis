@@ -159,6 +159,7 @@ message AppendEntriesRequestProto {
   repeated LogEntryProto entries = 4;
   uint64 leaderCommit = 5;
   bool initializing = 6;
+  bytes tracingInfo = 7;
 
   repeated CommitInfoProto commitInfos = 15;
 }
@@ -176,6 +177,7 @@ message AppendEntriesReplyProto {
   uint64 nextIndex = 3;
   AppendResult result = 4;
   uint64 followerCommit = 5;
+  bytes tracingInfo = 6;
 }
 
 message InstallSnapshotRequestProto {
@@ -261,6 +263,7 @@ message WatchRequestTypeProto {
 message RaftClientRequestProto {
   RaftRpcRequestProto rpcRequest = 1;
   ClientMessageEntryProto message = 2;
+  bytes tracingInfo = 7;
 
   oneof Type {
     WriteRequestTypeProto write = 3;
@@ -294,6 +297,7 @@ message StateMachineExceptionProto {
 message RaftClientReplyProto {
   RaftRpcReplyProto rpcReply = 1;
   ClientMessageEntryProto message = 2;
+  bytes tracingInfo = 7;
 
   oneof ExceptionDetails {
     NotLeaderExceptionProto notLeaderException = 3;

@@ -17,6 +17,16 @@
  */
 package org.apache.ratis.server.raftlog;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
+
 import io.opentracing.Scope;
 import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.conf.RaftProperties;
@@ -39,17 +49,6 @@ import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /**
  * Base class of RaftLog. Currently we provide two types of RaftLog
@@ -126,6 +125,17 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
           final long newCommitIndex = Math.min(majorityIndex, getFlushIndex());
           if (newCommitIndex > oldCommittedIndex) {
             commitIndex.updateIncreasingly(newCommitIndex, traceIndexChange);
+            for (long i = oldCommittedIndex + 1; i <= newCommitIndex; i++) {
+              try {
+                LogEntryProto le = get(i);
+                Scope commit = TracingUtil
+                    .importAndCreateScope("commit", le.getTracingInfo());
+                commit.close();
+                GlobalTracer.get().scopeManager().active().close();
+              } catch (RaftLogIOException e) {
+                e.printStackTrace();
+              }
+            }
           }
           return true;
         }
@@ -204,8 +214,11 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
     final long nextIndex;
     try(AutoCloseableLock writeLock = writeLock()) {
       nextIndex = getNextIndex();
+      Scope scope = GlobalTracer.get().buildSpan("RaftLog.appendEntry")
+          .startActive(false);
       entry = ServerProtoUtils.toLogEntryProto(newCommitIndex, term, nextIndex);
       appendEntry(entry);
+      scope.close();
     }
     lastMetadataEntry = entry;
     return nextIndex;
@@ -360,11 +373,7 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
   @Override
   public final CompletableFuture<Long> appendEntry(LogEntryProto entry) {
-    Scope scope = TracingUtil.importAndCreateScope("RaftLog.appendEntry",
-        new String(entry.getTracingInfo().toByteArray()));
-    return TracingUtil.traceFuture(runner.runSequentially(
-        () -> appendEntryImpl(entry).whenComplete((r, e) -> scope.close())),
-        scope);
+    return runner.runSequentially(() -> appendEntryImpl(entry));
   }
 
   protected abstract CompletableFuture<Long> appendEntryImpl(LogEntryProto entry);

@@ -17,21 +17,26 @@
  */
 package org.apache.ratis.grpc.server;
 
+import java.io.Closeable;
+
 import org.apache.ratis.grpc.GrpcTlsConfig;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteReplyProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
+import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc;
+import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceBlockingStub;
+import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceStub;
+import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.thirdparty.io.grpc.ManagedChannel;
 import org.apache.ratis.thirdparty.io.grpc.netty.GrpcSslContexts;
 import org.apache.ratis.thirdparty.io.grpc.netty.NegotiationType;
 import org.apache.ratis.thirdparty.io.grpc.netty.NettyChannelBuilder;
 import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
-import org.apache.ratis.proto.RaftProtos.*;
-import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc;
-import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceBlockingStub;
-import org.apache.ratis.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceStub;
-import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.ratis.util.TimeDuration;
-
-import java.io.Closeable;
 
 /**
  * This is a RaftClient implementation that supports streaming data to the raft
@@ -65,6 +70,7 @@ public class GrpcServerProtocolClient implements Closeable {
     } else {
       channelBuilder.negotiationType(NegotiationType.PLAINTEXT);
     }
+//    channelBuilder.intercept(new GrpcClientInterceptor());
     channel = channelBuilder.flowControlWindow(flowControlWindow).build();
     blockingStub = RaftServerProtocolServiceGrpc.newBlockingStub(channel);
     asyncStub = RaftServerProtocolServiceGrpc.newStub(channel);

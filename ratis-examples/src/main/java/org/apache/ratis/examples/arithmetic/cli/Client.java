@@ -47,6 +47,7 @@ public abstract class Client extends SubCommandBase {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     builder.setRaftGroup(raftGroup);
+
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     RaftClient client = builder.build();
 

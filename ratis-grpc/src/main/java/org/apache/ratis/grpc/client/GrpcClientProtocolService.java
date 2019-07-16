@@ -17,6 +17,9 @@
  */
 package org.apache.ratis.grpc.client;
 
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.grpc.GrpcUtil;
 import org.apache.ratis.protocol.*;
@@ -25,6 +28,7 @@ import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
 import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceImplBase;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.CollectionUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Preconditions;
@@ -237,6 +241,8 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
     public void onNext(RaftClientRequestProto request) {
       try {
         final RaftClientRequest r = ClientProtoUtils.toRaftClientRequest(request);
+        TracingUtil.importAndCreateScope("GrpcClientProtocolService.unordered",
+            request.getTracingInfo());
         processClientRequest(r);
       } catch (Throwable e) {
         responseError(e, () -> "onNext for " + ClientProtoUtils.toString(request) + " in " + name);
@@ -273,12 +279,15 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
 
     @Override
     void processClientRequest(RaftClientRequest request) {
+      Span span = GlobalTracer.get().activeSpan();
       final CompletableFuture<Void> f = processClientRequest(request, reply -> {
         if (!reply.isSuccess()) {
           LOG.info("Failed " + request + ", reply=" + reply);
         }
+        GlobalTracer.get().scopeManager().activate(span, false);
         final RaftClientReplyProto proto = ClientProtoUtils.toRaftClientReplyProto(reply);
         responseNext(proto);
+        span.finish();
       });
       final long callId = request.getCallId();
       put(callId, f);

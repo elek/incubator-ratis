@@ -18,6 +18,7 @@
 package org.apache.ratis.tracing;
 
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 
 import io.jaegertracing.Configuration;
@@ -27,13 +28,12 @@ import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
+import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
 /**
  * Utility class to collect all the tracing helper methods.
  */
 public final class TracingUtil {
-
-  private static final String NULL_SPAN_AS_STRING = "";
 
   private TracingUtil() {
   }
@@ -70,42 +70,45 @@ public final class TracingUtil {
    *
    * @return encoded tracing context.
    */
-  public static String exportCurrentSpan() {
+  public static ByteString exportCurrentSpan() {
     if (GlobalTracer.get().activeSpan() != null) {
       StringBuilder builder = new StringBuilder();
       GlobalTracer.get().inject(GlobalTracer.get().activeSpan().context(),
           StringCodec.FORMAT, builder);
-      return builder.toString();
+      return ByteString.copyFromUtf8(builder.toString());
     }
-    return NULL_SPAN_AS_STRING;
+    return ByteString.EMPTY;
   }
+  //
+  //  /**
+  //   * Export the specific span as a string.
+  //   *
+  //   * @return encoded tracing context.
+  //   */
+  //  public static String exportSpan(Span span) {
+  //    if (span != null) {
+  //      StringBuilder builder = new StringBuilder();
+  //      GlobalTracer.get().inject(span.context(), StringCodec.FORMAT,
+  //      builder);
+  //      return builder.toString();
+  //    }
+  //    return NULL_SPAN_AS_STRING;
+  //  }
 
-  /**
-   * Export the specific span as a string.
-   *
-   * @return encoded tracing context.
-   */
-  public static String exportSpan(Span span) {
-    if (span != null) {
-      StringBuilder builder = new StringBuilder();
-      GlobalTracer.get().inject(span.context(), StringCodec.FORMAT, builder);
-      return builder.toString();
-    }
-    return NULL_SPAN_AS_STRING;
-  }
 
   /**
    * Create a new scope and use the imported span as the parent.
    *
    * @param name          name of the newly created scope
-   * @param encodedParent Encoded parent span (could be null or empty)
    * @return OpenTracing scope.
    */
-  public static Scope importAndCreateScope(String name, String encodedParent) {
+  public static Scope importAndCreateScope(String name, ByteString trace) {
     Tracer.SpanBuilder spanBuilder;
     Tracer tracer = GlobalTracer.get();
+    String encodedParent = new String(trace.toByteArray(),
+        StandardCharsets.UTF_8);
     SpanContext parentSpan = null;
-    if (encodedParent != null && encodedParent.length() > 0) {
+    if (encodedParent.length() > 0) {
       StringBuilder builder = new StringBuilder();
       builder.append(encodedParent);
       parentSpan = tracer.extract(StringCodec.FORMAT, builder);

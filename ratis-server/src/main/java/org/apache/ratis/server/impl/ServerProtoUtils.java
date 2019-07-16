@@ -181,7 +181,7 @@ public interface ServerProtoUtils {
         .setTerm(term)
         .setIndex(index)
         .setTracingInfo(
-            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
+            TracingUtil.exportCurrentSpan())
         .setConfigurationEntry(toRaftConfigurationProto(conf))
         .build();
   }
@@ -190,8 +190,7 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
-        .setTracingInfo(
-            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
+        .setTracingInfo(TracingUtil.exportCurrentSpan())
         .setStateMachineLogEntry(smLog)
         .build();
   }
@@ -200,8 +199,7 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
-        .setTracingInfo(
-            ByteString.copyFromUtf8(TracingUtil.exportCurrentSpan()))
+        .setTracingInfo(TracingUtil.exportCurrentSpan())
         .setMetadataEntry(toMetadataEntryBuilder(commitIndex))
         .build();
   }

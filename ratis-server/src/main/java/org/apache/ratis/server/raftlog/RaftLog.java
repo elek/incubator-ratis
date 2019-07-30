@@ -17,6 +17,16 @@
  */
 package org.apache.ratis.server.raftlog;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
+
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
 import org.apache.ratis.protocol.RaftPeerId;
@@ -29,6 +39,7 @@ import org.apache.ratis.server.impl.ServerProtoUtils;
 import org.apache.ratis.server.protocol.TermIndex;
 import org.apache.ratis.statemachine.TransactionContext;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.AutoCloseableLock;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.OpenCloseState;
@@ -36,16 +47,6 @@ import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
 
 /**
  * Base class of RaftLog. Currently we provide two types of RaftLog
@@ -122,6 +123,15 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
           final long newCommitIndex = Math.min(majorityIndex, getFlushIndex());
           if (newCommitIndex > oldCommittedIndex) {
             commitIndex.updateIncreasingly(newCommitIndex, traceIndexChange);
+            for (long i = oldCommittedIndex + 1; i <= newCommitIndex; i++) {
+              try {
+                LogEntryProto le = get(i);
+                TracingUtil.importSpan(le.getTracingInfo());
+                TracingUtil.finishCurrentSpan();
+              } catch (RaftLogIOException e) {
+                e.printStackTrace();
+              }
+            }
           }
           return true;
         }

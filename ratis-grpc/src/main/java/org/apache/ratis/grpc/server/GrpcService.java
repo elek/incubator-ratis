@@ -17,9 +17,22 @@
  */
 package org.apache.ratis.grpc.server;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.function.Supplier;
+
+import brave.Tracer;
+import brave.Tracing;
+import brave.grpc.GrpcTracing;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcTlsConfig;
 import org.apache.ratis.grpc.client.GrpcClientProtocolService;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteReplyProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
 import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.rpc.SupportedRpcType;
@@ -27,22 +40,22 @@ import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.server.RaftServerRpc;
 import org.apache.ratis.server.impl.RaftServerRpcWithProxy;
+import org.apache.ratis.thirdparty.io.grpc.Server;
+import org.apache.ratis.thirdparty.io.grpc.ServerInterceptors;
 import org.apache.ratis.thirdparty.io.grpc.netty.GrpcSslContexts;
 import org.apache.ratis.thirdparty.io.grpc.netty.NettyServerBuilder;
-import org.apache.ratis.thirdparty.io.grpc.Server;
 import org.apache.ratis.thirdparty.io.netty.handler.ssl.ClientAuth;
 import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContextBuilder;
-
-import org.apache.ratis.proto.RaftProtos.*;
-import org.apache.ratis.util.*;
+import static org.apache.ratis.thirdparty.io.netty.handler.ssl.SslProvider.OPENSSL;
+import org.apache.ratis.util.CodeInjectionForTesting;
+import org.apache.ratis.util.ExitUtils;
+import org.apache.ratis.util.IOUtils;
+import org.apache.ratis.util.JavaUtils;
+import org.apache.ratis.util.PeerProxyMap;
+import org.apache.ratis.util.SizeInBytes;
+import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.function.Supplier;
-
-import static org.apache.ratis.thirdparty.io.netty.handler.ssl.SslProvider.OPENSSL;
 
 /** A grpc implementation of {@link RaftServerRpc}. */
 public class GrpcService extends RaftServerRpcWithProxy<GrpcServerProtocolClient, PeerProxyMap<GrpcServerProtocolClient>> {
@@ -108,13 +121,20 @@ public class GrpcService extends RaftServerRpcWithProxy<GrpcServerProtocolClient
 
     this.clientProtocolService = new GrpcClientProtocolService(idSupplier, raftServer);
 
+    Tracing tracing = Tracing.current();
+    GrpcTracing grpcTracing = GrpcTracing.create(tracing);
+
     NettyServerBuilder nettyServerBuilder = NettyServerBuilder.forPort(port)
         .maxInboundMessageSize(grpcMessageSizeMax.getSizeInt())
         .flowControlWindow(flowControlWindow.getSizeInt())
-        .addService(new GrpcServerProtocolService(idSupplier, raftServer))
-        .addService(clientProtocolService)
+        .addService(ServerInterceptors.intercept(
+            new GrpcServerProtocolService(idSupplier, raftServer),
+            grpcTracing.newServerInterceptor()))
+        .addService(ServerInterceptors.intercept(this.clientProtocolService,
+            grpcTracing.newServerInterceptor()))
         .addService(new GrpcAdminProtocolService(raftServer));
 
+//    nettyServerBuilder = nettyServerBuilder.intercept(new GrpcServerInterceptor());
     if (tlsConfig != null) {
       SslContextBuilder sslContextBuilder =
           SslContextBuilder.forServer(tlsConfig.getCertChain(),

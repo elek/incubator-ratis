@@ -26,6 +26,7 @@ import org.apache.ratis.protocol.ClientId;
 import org.apache.ratis.protocol.RaftGroup;
 import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 
 import java.io.IOException;
 
@@ -37,6 +38,7 @@ public abstract class Client extends SubCommandBase {
 
   @Override
   public void run() throws Exception {
+    TracingUtil.initTracing("ratis-client");
     RaftProperties raftProperties = new RaftProperties();
 
     final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)),
@@ -45,6 +47,7 @@ public abstract class Client extends SubCommandBase {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     builder.setRaftGroup(raftGroup);
+
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     RaftClient client = builder.build();
 

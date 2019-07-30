@@ -32,7 +32,6 @@
       <artifactId>ratis-proto</artifactId>
       <groupId>org.apache.ratis</groupId>
     </dependency>
-
     <dependency>
       <artifactId>ratis-common</artifactId>
       <groupId>org.apache.ratis</groupId>

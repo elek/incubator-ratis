@@ -52,8 +52,7 @@ public class RatisMetrics {
     }
     RatisMetricRegistry registry = MetricRegistries.global().create(info);
     metricsReporting
-        .startMetricsReporter(registry, MetricsReporting.MetricReporterType.JMX,
-            MetricsReporting.MetricReporterType.HADOOP2);
+        .startMetricsReporter(registry, MetricsReporting.MetricReporterType.JMX);
     // JVM metrics
     JVMMetrics
         .startJVMReporting(1000, TimeUnit.MILLISECONDS, MetricsReporting.MetricReporterType.JMX);

@@ -38,8 +38,9 @@ public class MetricsReporting {
   private long period;
   private static RatisMetricRegistry jvmRegistry;
   private GMetric ganglia;
+
   static{
-    DefaultMetricsSystem.initialize("ratis");
+//    DefaultMetricsSystem.initialize("ratis");
   }
 
   public enum MetricReporterType {

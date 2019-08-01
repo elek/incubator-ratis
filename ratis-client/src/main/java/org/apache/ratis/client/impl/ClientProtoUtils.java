@@ -20,6 +20,7 @@ package org.apache.ratis.client.impl;
 import org.apache.ratis.protocol.*;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.proto.RaftProtos.*;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.ProtoUtils;
 import org.apache.ratis.util.ReflectionUtils;
 
@@ -108,10 +109,12 @@ public interface ClientProtoUtils {
   static RaftClientRequestProto toRaftClientRequestProto(
       RaftClientRequest request) {
     final RaftClientRequestProto.Builder b = RaftClientRequestProto.newBuilder()
-        .setRpcRequest(toRaftRpcRequestProtoBuilder(request));
+        .setRpcRequest(toRaftRpcRequestProtoBuilder(request))
+        .setTracingInfo(TracingUtil.exportCurrentSpan());
     if (request.getMessage() != null) {
       b.setMessage(toClientMessageEntryProtoBuilder(request.getMessage()));
     }
+
 
     final RaftClientRequest.Type type = request.getType();
     switch (type.getTypeCase()) {
@@ -148,6 +151,7 @@ public interface ClientProtoUtils {
 
   static RaftClientReplyProto toRaftClientReplyProto(RaftClientReply reply) {
     final RaftClientReplyProto.Builder b = RaftClientReplyProto.newBuilder();
+    b.setTracingInfo(TracingUtil.exportCurrentSpan());
     if (reply != null) {
       b.setRpcReply(toRaftRpcReplyProtoBuilder(reply.getClientId().toByteString(),
           reply.getServerId().toByteString(), reply.getRaftGroupId(),

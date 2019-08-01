@@ -17,16 +17,16 @@
  */
 package org.apache.ratis.examples.arithmetic.cli;
 
+import java.io.IOException;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import org.apache.ratis.client.RaftClient;
-import org.apache.ratis.examples.arithmetic.AssignmentMessage;
 import org.apache.ratis.examples.arithmetic.expression.DoubleValue;
 import org.apache.ratis.examples.arithmetic.expression.Expression;
 import org.apache.ratis.examples.arithmetic.expression.Variable;
 import org.apache.ratis.protocol.RaftClientReply;
-
-import java.io.IOException;
+import org.apache.ratis.tracing.TracingUtil;
 
 /**
  * Subcommand to get value from the state machine.
@@ -40,10 +40,15 @@ public class Get extends Client {
 
   @Override
   protected void operation(RaftClient client) throws IOException {
-    RaftClientReply getValue =
-        client.sendReadOnly(Expression.Utils.toMessage(new Variable(name)));
-    Expression response =
-        Expression.Utils.bytes2Expression(getValue.getMessage().getContent().toByteArray(), 0);
-    System.out.println(String.format("%s=%s", name, (DoubleValue) response).toString());
+    TracingUtil.executeWithTrace("get", () -> {
+
+      RaftClientReply getValue =
+          client.sendReadOnly(Expression.Utils.toMessage(new Variable(name)));
+      Expression response =
+          Expression.Utils.bytes2Expression(
+              getValue.getMessage().getContent().toByteArray(), 0);
+      System.out.println(
+          String.format("%s=%s", name, (DoubleValue) response).toString());
+    });
   }
 }

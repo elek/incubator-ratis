@@ -26,6 +26,7 @@ import org.apache.ratis.retry.RetryPolicies;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
+import org.apache.ratis.tracing.TracingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +124,9 @@ public interface RaftClient extends Closeable {
         if (clientRpc == null) {
           final RpcType rpcType = RaftConfigKeys.Rpc.type(properties, LOG::debug);
           final ClientFactory factory = ClientFactory.cast(rpcType.newFactory(parameters));
-          clientRpc = factory.newRaftClientRpc(clientId, properties);
+          clientRpc = TracingUtil
+              .createProxy(factory.newRaftClientRpc(clientId, properties),
+                  RaftClientRpc.class);
         }
       }
       return ClientImplUtils.newRaftClient(clientId,

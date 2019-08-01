@@ -17,36 +17,56 @@
  */
 package org.apache.ratis.server.impl;
 
-import org.apache.ratis.conf.RaftProperties;
-import org.apache.ratis.protocol.RaftPeerId;
-import org.apache.ratis.server.RaftServerConfigKeys;
-import org.apache.ratis.server.protocol.TermIndex;
-import org.apache.ratis.server.storage.FileInfo;
-import org.apache.ratis.server.raftlog.RaftLog;
-import org.apache.ratis.server.raftlog.RaftLog.EntryWithData;
-import org.apache.ratis.server.raftlog.RaftLogIOException;
-import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
-import org.apache.ratis.proto.RaftProtos.*;
-import org.apache.ratis.statemachine.SnapshotInfo;
-import org.apache.ratis.util.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
+import brave.ScopedSpan;
+import brave.Span;
+import brave.Tracing;
+import org.apache.ratis.conf.RaftProperties;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
+import org.apache.ratis.proto.RaftProtos.FileChunkProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotResult;
+import org.apache.ratis.proto.RaftProtos.LogEntryProto;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.server.RaftServerConfigKeys;
 import static org.apache.ratis.server.impl.RaftServerConstants.DEFAULT_CALLID;
 import static org.apache.ratis.server.impl.RaftServerConstants.INVALID_LOG_INDEX;
+import org.apache.ratis.server.protocol.TermIndex;
+import org.apache.ratis.server.raftlog.RaftLog;
+import org.apache.ratis.server.raftlog.RaftLog.EntryWithData;
+import org.apache.ratis.server.raftlog.RaftLogIOException;
+import org.apache.ratis.server.storage.FileInfo;
+import org.apache.ratis.statemachine.SnapshotInfo;
+import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
+import org.apache.ratis.util.Daemon;
+import org.apache.ratis.util.DataQueue;
+import org.apache.ratis.util.IOUtils;
+import org.apache.ratis.util.LifeCycle;
 import static org.apache.ratis.util.LifeCycle.State.CLOSED;
 import static org.apache.ratis.util.LifeCycle.State.CLOSING;
 import static org.apache.ratis.util.LifeCycle.State.EXCEPTION;
 import static org.apache.ratis.util.LifeCycle.State.NEW;
 import static org.apache.ratis.util.LifeCycle.State.RUNNING;
 import static org.apache.ratis.util.LifeCycle.State.STARTING;
+import org.apache.ratis.util.Preconditions;
+import org.apache.ratis.util.SizeInBytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A daemon thread appending log entries to a follower peer.
@@ -218,9 +238,26 @@ public class LogAppender {
         (entry, time, exception) -> LOG.warn("{}: Failed to get {} in {}: {}",
             follower.getName(), entry, time, exception));
     buffer.clear();
-    assertProtos(protos, followerNext, previous);
+    final List<LogEntryProto> tracedProtos = protos.stream().map(
+        proto -> {
+
+          ByteString tracingInfo = ByteString.EMPTY;
+          Span originalTrace = TracingUtil.importSpan(proto.getTracingInfo());
+          if (originalTrace != null) {
+            ScopedSpan hbScope = Tracing.currentTracer()
+                .startScopedSpanWithParent("HB", originalTrace.context());
+            tracingInfo = TracingUtil.exportSpan(hbScope.context());
+          }
+          return LogEntryProto.newBuilder()
+              .mergeFrom(proto)
+              .setTracingInfo(tracingInfo)
+              .build();
+        })
+        .collect(Collectors.toList());
+    assertProtos(tracedProtos, followerNext, previous);
     return leaderState.newAppendEntriesRequestProto(
-        getFollowerId(), previous, protos, !follower.isAttendingVote(), callId);
+        getFollowerId(), previous, tracedProtos, !follower.isAttendingVote(),
+        callId);
   }
 
   private void assertProtos(List<LogEntryProto> protos, long nextIndex, TermIndex previous) {
@@ -259,6 +296,12 @@ public class LogAppender {
         }
 
         follower.updateLastRpcSendTime();
+        for (LogEntryProto entryList : request.getEntriesList()) {
+          Span span = TracingUtil.importSpan(entryList.getTracingInfo());
+          if (span != null) {
+            span.finish();
+          }
+        }
         final AppendEntriesReplyProto r = server.getServerRpc().appendEntries(request);
         follower.updateLastRpcResponseTime();
 

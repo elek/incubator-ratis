@@ -17,6 +17,9 @@
  */
 package org.apache.ratis.grpc.client;
 
+import brave.ScopedSpan;
+import brave.Span;
+import brave.Tracing;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.grpc.GrpcUtil;
 import org.apache.ratis.protocol.*;
@@ -25,6 +28,7 @@ import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
 import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceImplBase;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.CollectionUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Preconditions;
@@ -237,7 +241,16 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
     public void onNext(RaftClientRequestProto request) {
       try {
         final RaftClientRequest r = ClientProtoUtils.toRaftClientRequest(request);
-        processClientRequest(r);
+        Span span = TracingUtil.importSpan(request.getTracingInfo());
+        ScopedSpan scopedSpan = Tracing.currentTracer()
+            .startScopedSpanWithParent(
+                "GrpcClientProtocolService.processClientRequest",
+                span.context());
+        try {
+          processClientRequest(r);
+        } finally {
+          scopedSpan.finish();
+        }
       } catch (Throwable e) {
         responseError(e, () -> "onNext for " + ClientProtoUtils.toString(request) + " in " + name);
       }

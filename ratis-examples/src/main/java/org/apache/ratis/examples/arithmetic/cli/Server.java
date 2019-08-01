@@ -31,6 +31,7 @@ import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.statemachine.StateMachine;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.LifeCycle;
 import org.apache.ratis.util.NetUtils;
 
@@ -56,6 +57,8 @@ public class Server extends SubCommandBase {
 
   @Override
   public void run() throws Exception {
+    TracingUtil.initTracing("ratis-server." + id);
+
     RaftPeerId peerId = RaftPeerId.valueOf(id);
     RaftProperties properties = new RaftProperties();
 
@@ -90,5 +93,11 @@ public class Server extends SubCommandBase {
       }
     }
     throw new IllegalArgumentException("Raft peer id " + id + " is not part of the raft group definitions " + peers);
+  }
+
+  public static void main(String[] args) {
+    RaftGroupId value =
+        RaftGroupId.valueOf(ByteString.copyFromUtf8("demoRaftGroup123"));
+    System.out.println(value.getUuid().toString());
   }
 }

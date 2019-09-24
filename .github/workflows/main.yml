@@ -2,12 +2,20 @@ name: main
 on: pull_request
 jobs:
   build:
-    name: Build
+    name: Compile
     runs-on: ubuntu-18.04
     steps:
         - uses: actions/checkout@master
         - uses: ./.github/actions/build
           env:
             TEST_TYPE: build
+  build:
+    name: Unit test
+    runs-on: ubuntu-18.04
+    steps:
+        - uses: actions/checkout@master
+        - uses: ./.github/actions/build
+          env:
+            TEST_TYPE: unit
 
 

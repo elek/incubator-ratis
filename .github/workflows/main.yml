@@ -9,7 +9,7 @@ jobs:
         - uses: ./.github/actions/build
           env:
             TEST_TYPE: build
-  build:
+  unit:
     name: Unit test
     runs-on: ubuntu-18.04
     steps:

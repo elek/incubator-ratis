@@ -10,4 +10,5 @@ LABEL "homepage"="http://ratis.apache.org"
 
 ADD entrypoint.sh /entrypoint.sh
 RUN sudo chmod +x /entrypoint.sh
+USER root
 ENTRYPOINT ["/entrypoint.sh"]

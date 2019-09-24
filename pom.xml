@@ -158,7 +158,7 @@
     <maven-source-plugin.version>2.3</maven-source-plugin.version>
     <maven-stylus-skin.version>1.5</maven-stylus-skin.version>
     <maven-surefire-plugin.version>3.0.0-M1</maven-surefire-plugin.version>
-    <maven-remote-resources-plugin.version>1.6</maven-remote-resources-plugin.version>
+    <maven-remote-resources-plugin.version>1.6.0</maven-remote-resources-plugin.version>
     <protobuf-maven-plugin.version>0.5.1</protobuf-maven-plugin.version>
     <license-maven-plugin.version>1.19</license-maven-plugin.version>
     <copy-rename-maven-plugin.version>1.0</copy-rename-maven-plugin.version>

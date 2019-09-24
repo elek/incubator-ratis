@@ -1,0 +1,21 @@
+name: main
+on: pull_request
+jobs:
+  build:
+    name: Compile
+    runs-on: ubuntu-18.04
+    steps:
+        - uses: actions/checkout@master
+        - uses: ./.github/actions/build
+          env:
+            TEST_TYPE: build
+  unit:
+    name: Unit test
+    runs-on: ubuntu-18.04
+    steps:
+        - uses: actions/checkout@master
+        - uses: ./.github/actions/build
+          env:
+            TEST_TYPE: unit
+
+

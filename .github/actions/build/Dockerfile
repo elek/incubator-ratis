@@ -1,4 +1,4 @@
-FROM debian:9.5-slim
+FROM elek/ozone-build:20190825-1
 
 LABEL "com.github.actions.name"="Build"
 LABEL "com.github.actions.description"="Build adapter to execute shell script in docker"

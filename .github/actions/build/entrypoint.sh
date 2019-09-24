@@ -1,3 +1,3 @@
 #!/bin/sh -l
 
-./dev-support/checks/build.sh
+./dev-support/checks/${TEST_TYPE:-build}.sh

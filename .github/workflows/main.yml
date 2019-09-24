@@ -7,5 +7,7 @@ jobs:
     steps:
         - uses: actions/checkout@master
         - uses: ./.github/actions/build
+          env:
+            TEST_TYPE: build
 
 

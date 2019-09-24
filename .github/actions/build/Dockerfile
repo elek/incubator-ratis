@@ -9,5 +9,5 @@ LABEL "repository"="http://github.com/apache/incubator-ratis"
 LABEL "homepage"="http://ratis.apache.org"
 
 ADD entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sudo chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

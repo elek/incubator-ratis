@@ -101,41 +101,49 @@ public class GrpcLogAppender extends LogAppender {
 
   @Override
   protected void runAppenderImpl() throws IOException {
-    boolean shouldAppendLog;
+    boolean snapshotIsSentOut;
     for(; isAppenderRunning(); mayWait()) {
-      shouldAppendLog = true;
-      if (shouldSendRequest()) {
+      snapshotIsSentOut = false;
+
+      if (appendLogRequestObserver == null) {
+        continue;
+      }
+
+      //HB period is expired OR we have messages OR follower is behind with commit index
+      if (haveMessagesToSendOut() || heartbeatTimeout() || isFollowerCommitBehindOrLastCommitIndex()) {
+
         if (installSnapshotEnabled) {
           SnapshotInfo snapshot = shouldInstallSnapshot();
           if (snapshot != null) {
             installSnapshot(snapshot);
-            shouldAppendLog = false;
+            snapshotIsSentOut = true;
           }
         } else {
           TermIndex installSnapshotNotificationTermIndex = shouldNotifyToInstallSnapshot();
           if (installSnapshotNotificationTermIndex != null) {
             installSnapshot(installSnapshotNotificationTermIndex);
-            shouldAppendLog = false;
+            snapshotIsSentOut = true;
           }
         }
-        if (shouldHeartbeat() || (shouldAppendLog && !shouldWait())) {
-          // keep appending log entries or sending heartbeats
-          appendLog();
-        }
+
+        appendLog(snapshotIsSentOut || haveTooManyPendingRequests());
+
       }
       checkSlowness();
+
     }
 
     Optional.ofNullable(appendLogRequestObserver).ifPresent(StreamObserver::onCompleted);
   }
 
   private long getWaitTimeMs() {
-    if (!shouldSendRequest()) {
-      return getHeartbeatRemainingTime(); // No requests, wait until heartbeat
-    } else if (shouldWait()) {
+    if (shouldSendRequest()) {
+      return 0L;
+    } else if (haveTooManyPendingRequests()) {
       return getHalfMinTimeoutMs(); // Should wait for a short time
     }
-    return 0L;
+    //TODO check if 10L is higher than the HB period
+    return 10L;
   }
 
   private void mayWait() {
@@ -166,8 +174,10 @@ public class GrpcLogAppender extends LogAppender {
     return appendLogRequestObserver == null || super.shouldSendRequest();
   }
 
-  /** @return true iff not received first response or queue is full. */
-  private boolean shouldWait() {
+  /**
+   * @return true iff not received first response or queue is full.
+   */
+  private boolean haveTooManyPendingRequests() {
     final int size = pendingRequests.logRequestsSize();
     if (size == 0) {
       return false;
@@ -175,7 +185,7 @@ public class GrpcLogAppender extends LogAppender {
     return !firstResponseReceived || size >= maxPendingRequestsNum;
   }
 
-  private void appendLog() throws IOException {
+  private void appendLog(boolean excludeMessages) throws IOException {
     final AppendEntriesRequestProto pending;
     final AppendEntriesRequest request;
     final StreamObserver<AppendEntriesRequestProto> s;
@@ -183,7 +193,7 @@ public class GrpcLogAppender extends LogAppender {
       // prepare and enqueue the append request. note changes on follower's
       // nextIndex and ops on pendingRequests should always be associated
       // together and protected by the lock
-      pending = createRequest(callId++);
+      pending = createRequest(callId++, excludeMessages);
       if (pending == null) {
         return;
       }

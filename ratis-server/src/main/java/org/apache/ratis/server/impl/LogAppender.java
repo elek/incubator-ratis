@@ -222,11 +222,11 @@ public class LogAppender {
   }
 
   protected AppendEntriesRequestProto createRequest(long callId,
-      boolean heartbeat) throws RaftLogIOException {
+      boolean sendEmptyHBImmedate) throws RaftLogIOException {
     final TermIndex previous = getPrevious(follower.getNextIndex());
     final long snapshotIndex = follower.getSnapshotIndex();
     final long heartbeatRemainingMs = getHeartbeatRemainingTime();
-    if (heartbeatRemainingMs <= 0L || heartbeat) {
+    if (heartbeatRemainingMs <= 0L || sendEmptyHBImmedate) {
       // heartbeat
       return leaderState.newAppendEntriesRequestProto(
           getFollowerId(), previous, Collections.emptyList(), !follower.isAttendingVote(), callId);
@@ -241,9 +241,6 @@ public class LogAppender {
       if (!buffer.offer(raftLog.getEntryWithData(next++))) {
         break;
       }
-    }
-    if (buffer.isEmpty()) {
-      return null;
     }
 
     final List<LogEntryProto> protos = buffer.pollList(getHeartbeatRemainingTime(), EntryWithData::getEntry,

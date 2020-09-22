@@ -278,6 +278,19 @@ public class ServerState implements Closeable {
     return log;
   }
 
+  public TermIndex getLastEntry() {
+    TermIndex lastEntry = getLog().getLastEntryTermIndex();
+    if (lastEntry == null) {
+      // lastEntry may need to be derived from snapshot
+      SnapshotInfo snapshot = getLatestSnapshot();
+      if (snapshot != null) {
+        lastEntry = snapshot.getTermIndex();
+      }
+    }
+
+    return lastEntry;
+  }
+
   void appendLog(TransactionContext operation) throws StateMachineException {
     log.append(currentTerm.get(), operation);
     Objects.requireNonNull(operation.getLogEntry());
@@ -318,19 +331,23 @@ public class ServerState implements Closeable {
     return false;
   }
 
-  boolean isLogUpToDate(TermIndex candidateLastEntry) {
-    TermIndex local = log.getLastEntryTermIndex();
-    // need to take into account snapshot
-    SnapshotInfo snapshot = server.getStateMachine().getLatestSnapshot();
-     if (local == null && snapshot == null) {
-      return true;
+  static int compareLog(TermIndex lastEntry, TermIndex candidateLastEntry) {
+    if (lastEntry == null) {
+      // If the lastEntry of candidate is null, the proto will transfer an empty TermIndexProto,
+      // then term and index of candidateLastEntry will both be 0.
+      // Besides, candidateLastEntry comes from proto now, it never be null.
+      // But we still check candidateLastEntry == null here,
+      // to avoid candidateLastEntry did not come from proto in future.
+      if (candidateLastEntry == null ||
+          (candidateLastEntry.getTerm() == 0 && candidateLastEntry.getIndex() == 0)) {
+        return 0;
+      }
+      return -1;
     } else if (candidateLastEntry == null) {
-      return false;
+      return 1;
     }
-    if (local == null || (snapshot != null && snapshot.getIndex() > local.getIndex())) {
-      local = snapshot.getTermIndex();
-    }
-    return local.compareTo(candidateLastEntry) <= 0;
+
+    return lastEntry.compareTo(candidateLastEntry);
   }
 
   @Override

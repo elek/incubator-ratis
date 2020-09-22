@@ -24,6 +24,7 @@ package ratis.common;
 message RaftPeerProto {
   bytes id = 1;      // id of the peer
   string address = 2; // e.g. IP address, hostname etc.
+  uint32 priority = 3; // priority of the peer
 }
 
 message RaftGroupIdProto {
@@ -335,6 +336,7 @@ message GroupAddRequestProto {
 message GroupRemoveRequestProto {
   RaftGroupIdProto groupId = 1; // the group to be removed.
   bool deleteDirectory = 2; // delete the directory for that group?
+  bool renameDirectory = 3; // rename the directory if not deleted.
 }
 
 message GroupManagementRequestProto {
@@ -363,6 +365,7 @@ message ServerRpcProto {
 
 message LeaderInfoProto {
   repeated ServerRpcProto followerInfo = 1;
+  uint64 term = 2;
 }
 
 message FollowerInfoProto {

@@ -42,6 +42,9 @@ public interface RaftClient extends Closeable {
   /** @return the id of this client. */
   ClientId getId();
 
+  /** @return the cluster leaderId recorded by this client. */
+  RaftPeerId getLeaderId();
+
   /** @return the client rpct. */
   RaftClientRpc getClientRpc();
 
@@ -92,7 +95,8 @@ public interface RaftClient extends Closeable {
   RaftClientReply groupAdd(RaftGroup newGroup, RaftPeerId server) throws IOException;
 
   /** Send groupRemove request to the given server (not the raft service). */
-  RaftClientReply groupRemove(RaftGroupId groupId, boolean deleteDirectory, RaftPeerId server) throws IOException;
+  RaftClientReply groupRemove(RaftGroupId groupId, boolean deleteDirectory,
+      boolean renameDirectory, RaftPeerId server) throws IOException;
 
   /** Send getGroupList request to the given server.*/
   GroupListReply getGroupList(RaftPeerId server) throws IOException;

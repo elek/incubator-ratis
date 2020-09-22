@@ -116,8 +116,7 @@ public final class RaftClientImpl implements RaftClient {
     this.clientRpc = clientRpc;
     this.peers = new ConcurrentLinkedQueue<>(group.getPeers());
     this.groupId = group.getGroupId();
-    this.leaderId = leaderId != null? leaderId
-        : !peers.isEmpty()? peers.iterator().next().getId(): null;
+    this.leaderId = leaderId != null? leaderId : getHighestPriorityPeerId();
     Preconditions.assertTrue(retryPolicy != null, "retry policy can't be null");
     this.retryPolicy = retryPolicy;
 
@@ -126,6 +125,27 @@ public final class RaftClientImpl implements RaftClient {
 
     this.orderedAsync = JavaUtils.memoize(() -> OrderedAsync.newInstance(this, properties));
     this.streamApi = JavaUtils.memoize(() -> StreamImpl.newInstance(this, properties));
+  }
+
+  public RaftPeerId getLeaderId() {
+    return leaderId;
+  }
+
+  private RaftPeerId getHighestPriorityPeerId() {
+    if (peers == null) {
+      return null;
+    }
+
+    int maxPriority = Integer.MIN_VALUE;
+    RaftPeerId highestPriorityPeerId = null;
+    for (RaftPeer peer : peers) {
+      if (maxPriority < peer.getPriority()) {
+        maxPriority = peer.getPriority();
+        highestPriorityPeerId = peer.getId();
+      }
+    }
+
+    return highestPriorityPeerId;
   }
 
   @Override
@@ -250,13 +270,15 @@ public final class RaftClientImpl implements RaftClient {
   }
 
   @Override
-  public RaftClientReply groupRemove(RaftGroupId grpId, boolean deleteDirectory, RaftPeerId server)
+  public RaftClientReply groupRemove(RaftGroupId grpId, boolean deleteDirectory,
+      boolean renameDirectory, RaftPeerId server)
       throws IOException {
     Objects.requireNonNull(groupId, "groupId == null");
     Objects.requireNonNull(server, "server == null");
 
     final long callId = nextCallId();
-    return sendRequest(GroupManagementRequest.newRemove(clientId, server, callId, grpId, deleteDirectory));
+    return sendRequest(GroupManagementRequest.newRemove(clientId, server,
+        callId, grpId, deleteDirectory, renameDirectory));
   }
 
   @Override

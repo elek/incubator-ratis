@@ -22,7 +22,6 @@ import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
 import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.server.protocol.TermIndex;
-import org.apache.ratis.statemachine.SnapshotInfo;
 import org.apache.ratis.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.ratis.util.Daemon;
 import org.apache.ratis.util.LifeCycle;
@@ -46,6 +45,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.ratis.util.LifeCycle.State.NEW;
@@ -208,14 +209,7 @@ class LeaderElection implements Runnable {
       }
       LOG.info("{}: begin an election at term {} for {}", this, electionTerm, conf);
 
-      TermIndex lastEntry = state.getLog().getLastEntryTermIndex();
-      if (lastEntry == null) {
-        // lastEntry may need to be derived from snapshot
-        SnapshotInfo snapshot = state.getLatestSnapshot();
-        if (snapshot != null) {
-          lastEntry = snapshot.getTermIndex();
-        }
-      }
+      TermIndex lastEntry = state.getLastEntry();
 
       final ResultAndTerm r;
       final Collection<RaftPeer> others = conf.getOtherPeers(server.getId());
@@ -269,6 +263,21 @@ class LeaderElection implements Runnable {
     return submitted;
   }
 
+  private Set<RaftPeerId> getHigherPriorityPeers(RaftConfiguration conf) {
+    Set<RaftPeerId> higherPriorityPeers = new HashSet<>();
+
+    int currPriority = conf.getPeer(server.getId()).getPriority();
+    Collection<RaftPeer> peers = conf.getPeers();
+
+    for (RaftPeer peer : peers) {
+      if (peer.getPriority() > currPriority) {
+        higherPriorityPeers.add(peer.getId());
+      }
+    }
+
+    return higherPriorityPeers;
+  }
+
   private ResultAndTerm waitForResults(final long electionTerm, final int submitted,
       RaftConfiguration conf, Executor voteExecutor) throws InterruptedException {
     final Timestamp timeout = Timestamp.currentTime().addTimeMs(server.getRandomTimeoutMs());
@@ -276,10 +285,18 @@ class LeaderElection implements Runnable {
     final List<Exception> exceptions = new ArrayList<>();
     int waitForNum = submitted;
     Collection<RaftPeerId> votedPeers = new ArrayList<>();
+    Set<RaftPeerId> higherPriorityPeers = getHigherPriorityPeers(conf);
+
     while (waitForNum > 0 && shouldRun(electionTerm)) {
       final TimeDuration waitTime = timeout.elapsedTime().apply(n -> -n);
       if (waitTime.isNonPositive()) {
-        return logAndReturn(Result.TIMEOUT, responses, exceptions, -1);
+        if (conf.hasMajority(votedPeers, server.getId())) {
+          // if some higher priority peer did not response when timeout, but candidate get majority,
+          // candidate pass vote
+          return logAndReturn(Result.PASSED, responses, exceptions, -1);
+        } else {
+          return logAndReturn(Result.TIMEOUT, responses, exceptions, -1);
+        }
       }
 
       try {
@@ -305,9 +322,22 @@ class LeaderElection implements Runnable {
           return logAndReturn(Result.DISCOVERED_A_NEW_TERM, responses,
               exceptions, r.getTerm());
         }
+
+        // If any peer with higher priority rejects vote, candidate can not pass vote
+        if (!r.getServerReply().getSuccess() && higherPriorityPeers.contains(replierId)) {
+          return logAndReturn(Result.REJECTED, responses, exceptions, -1);
+        }
+
+        // remove higher priority peer, so that we check higherPriorityPeers empty to make sure
+        // all higher priority peers have replied
+        if (higherPriorityPeers.contains(replierId)) {
+          higherPriorityPeers.remove(replierId);
+        }
+
         if (r.getServerReply().getSuccess()) {
           votedPeers.add(replierId);
-          if (conf.hasMajority(votedPeers, server.getId())) {
+          // If majority and all peers with higher priority have voted, candidate pass vote
+          if (higherPriorityPeers.size() == 0 && conf.hasMajority(votedPeers, server.getId())) {
             return logAndReturn(Result.PASSED, responses, exceptions, -1);
           }
         }
@@ -318,7 +348,11 @@ class LeaderElection implements Runnable {
       waitForNum--;
     }
     // received all the responses
-    return logAndReturn(Result.REJECTED, responses, exceptions, -1);
+    if (conf.hasMajority(votedPeers, server.getId())) {
+      return logAndReturn(Result.PASSED, responses, exceptions, -1);
+    } else {
+      return logAndReturn(Result.REJECTED, responses, exceptions, -1);
+    }
   }
 
   @Override

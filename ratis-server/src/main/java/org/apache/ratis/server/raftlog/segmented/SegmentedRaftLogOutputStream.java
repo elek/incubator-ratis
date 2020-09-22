@@ -102,7 +102,7 @@ public class SegmentedRaftLogOutputStream implements Closeable {
   @Override
   public void close() throws IOException {
     try {
-      //flush();
+      flush();
     } finally {
       IOUtils.cleanup(LOG, out);
     }
